@@ -168,23 +168,3 @@ For subdomain-based multi-tenancy to work locally:
    ```
 
 3. Access via: `http://testcompany.site.test:8000`
-
-## TODO / Integration Points
-
-### Geocoding Service
-The `GeocodingService` in `backend/app/Services/GeocodingService.php` has placeholder code. Integrate your preferred provider:
-- Google Maps Geocoding API
-- OpenCage
-- Nominatim
-
-### Future Enhancements
-- Email notifications
-- Real-time tracking dashboard
-- Advanced reporting
-- Invoice generation
-- Multi-language support
-- Mobile app
-
-## License
-
-This project is open-source and available for use.

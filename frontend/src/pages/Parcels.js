@@ -119,6 +119,9 @@ function Parcels() {
                   <td>${parcel.quoted_price}</td>
                   <td>{getStatusBadge(parcel.status)}</td>
                   <td>
+                    <Link to={`/parcels/${parcel.id}`} className="btn btn-sm btn-info me-2">
+                      View Details
+                    </Link>
                     {(user.role === 'company_admin' || user.role === 'staff') && parcel.status === 'pending' && (
                       <>
                         <button 
