@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService, setAuth } from '../services/auth';
 
@@ -9,12 +9,25 @@ function Register() {
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'customer',
-    company_name: '',
-    subdomain: '',
+    company_id: '',
   });
+  const [companies, setCompanies] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadCompanies();
+  }, []);
+
+  const loadCompanies = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/companies/active');
+      const data = await response.json();
+      setCompanies(data);
+    } catch (error) {
+      console.error('Error loading companies:', error);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -101,48 +114,29 @@ function Register() {
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label">Register As</label>
+                  <label className="form-label">Select Company *</label>
                   <select
                     className="form-select"
-                    name="role"
-                    value={formData.role}
+                    name="company_id"
+                    value={formData.company_id}
                     onChange={handleChange}
+                    required
                   >
-                    <option value="customer">Customer</option>
-                    <option value="company_admin">Company Admin</option>
+                    <option value="">Choose a company to register with...</option>
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
                   </select>
+                  <small className="form-text text-muted">
+                    You will be registered as a customer of this company
+                  </small>
                 </div>
 
-                {formData.role === 'company_admin' && (
-                  <>
-                    <div className="mb-3">
-                      <label className="form-label">Company Name</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        name="company_name"
-                        value={formData.company_name}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="form-label">Subdomain</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        name="subdomain"
-                        value={formData.subdomain}
-                        onChange={handleChange}
-                        required
-                      />
-                      <small className="form-text text-muted">
-                        Your company will be accessible at: {formData.subdomain}.site.test
-                      </small>
-                    </div>
-                  </>
-                )}
+                <div className="alert alert-info">
+                  <strong>Note:</strong> You are registering as a customer. Company registration is handled by the system administrator.
+                </div>
 
                 <button 
                   type="submit" 

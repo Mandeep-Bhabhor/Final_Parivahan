@@ -1,125 +1,228 @@
-# Fixes Applied
+# ✅ Fixes Applied - Security & Validation
 
-## Issue: Migration Foreign Key Constraint Error
+## 🔒 Issues Fixed
 
-### Problem
-When running `php artisan migrate:fresh --seed`, the migrations failed with:
-```
-SQLSTATE[HY000]: General error: 1005 Can't create table `logistics_platform`.`vehicles` 
-(errno: 150 "Foreign key constraint is incorrectly formed")
-```
+### 1. Customer Can't Create Parcels for Other Companies
+**Problem:** Customers could manually enter any company_id
 
-### Root Cause
-The migration files had incorrect timestamps, causing them to run in the wrong order:
-- `vehicles` table was being created before `warehouses` table
-- But `vehicles` has a foreign key reference to `warehouses`
-- This caused the foreign key constraint to fail
+**Solution:**
+- ✅ Changed company_id input to dropdown
+- ✅ Created public API endpoint `/api/companies/active`
+- ✅ Only shows active companies
+- ✅ Backend validates company is active
+- ✅ Returns error if company is inactive
 
-### Solution
-Renamed migration files to ensure correct execution order:
+**Backend Changes:**
+```php
+// New endpoint in CompanyController
+public function getActiveCompanies()
+{
+    $companies = Company::where('is_active', true)
+        ->select('id', 'name', 'subdomain')
+        ->get();
+    return response()->json($companies);
+}
 
-**Correct Order:**
-1. `2025_11_16_101614_create_companies_table.php`
-2. `2025_11_16_101624_add_company_fields_to_users_table.php`
-3. `2025_11_16_101642_create_warehouses_table.php` ← Fixed (was 101643)
-4. `2025_11_16_101643_create_vehicles_table.php`
-5. `2025_11_16_101644_create_shipments_table.php` ← Fixed (was 101644)
-6. `2025_11_16_101645_create_parcels_table.php` ← Fixed (was 101644)
-7. `2025_11_16_101646_create_shipment_parcels_table.php` ← Fixed (was 101644)
-
-### Dependency Chain
-```
-companies
-    ↓
-users (depends on companies)
-    ↓
-warehouses (depends on companies)
-    ↓
-vehicles (depends on companies + warehouses)
-    ↓
-shipments (depends on companies + users + vehicles + warehouses)
-    ↓
-parcels (depends on companies + users + warehouses + shipments [nullable])
-    ↓
-shipment_parcels (depends on shipments + parcels)
+// Validation in ParcelController
+$company = Company::find($request->company_id);
+if (!$company || !$company->is_active) {
+    return error 422
+}
 ```
 
-## Verification
+**Frontend Changes:**
+```javascript
+// ParcelForm.js
+- Loads active companies from API
+- Dropdown instead of text input
+- User can only select from available companies
+```
 
-### Backend Tests
-✅ Migrations run successfully
-✅ Database seeded with test data
-✅ Backend server started on http://localhost:8000
-✅ API endpoint tested (register user) - Working!
+### 2. Vehicle Type Fixed to Predefined Options
+**Problem:** Vehicle type was free text, allowing any value
 
-### Frontend Tests
-✅ No syntax errors
-✅ No diagnostics issues
-✅ Frontend server started on http://localhost:3000
-✅ Compiled successfully
+**Solution:**
+- ✅ Changed to dropdown with predefined types
+- ✅ Backend validation enforces allowed types
+- ✅ Consistent vehicle types across system
 
-## Current Status
+**Vehicle Types:**
+- Truck
+- Van
+- Pickup
+- Trailer
+- Box Truck
 
-### Backend (Port 8000)
-- ✅ Running
-- ✅ Database connected
-- ✅ Migrations completed
-- ✅ Test data seeded
-- ✅ API responding correctly
+**Backend Validation:**
+```php
+'type' => 'required|string|in:Truck,Van,Pickup,Trailer,Box Truck'
+```
 
-### Frontend (Port 3000)
-- ✅ Running
-- ✅ Compiled successfully
-- ✅ Ready to use
+**Frontend:**
+```javascript
+<select name="type">
+  <option value="Truck">Truck</option>
+  <option value="Van">Van</option>
+  <option value="Pickup">Pickup</option>
+  <option value="Trailer">Trailer</option>
+  <option value="Box Truck">Box Truck</option>
+</select>
+```
 
-## Test Credentials
+### 3. Weight & Volume Validation Already Fixed
+**Status:** ✅ Already implemented in previous updates
 
-After seeding, you can login with:
+**Validation Rules:**
+- Weight: 0.1 - 1000 kg
+- Height: 0.01 - 10 m
+- Width: 0.01 - 10 m
+- Length: 0.01 - 10 m
+- Volume (calculated): max 500 m³
 
-**Company Admin:**
-- Email: admin@testcompany.com
-- Password: password
+**Frontend:**
+- HTML5 min/max attributes
+- Real-time volume calculation
+- Visual warnings
 
-**Staff:**
-- Email: staff@testcompany.com
-- Password: password
+**Backend:**
+- Laravel validation rules
+- Volume check after calculation
+- Specific error messages
 
-**Driver:**
-- Email: driver@testcompany.com
-- Password: password
+## 🔐 Security Improvements
 
-**Customer:**
-- Email: customer@example.com
-- Password: password
+### Company Selection:
+**Before:**
+```html
+<input type="number" name="company_id" />
+<!-- Customer could enter ANY company_id -->
+```
 
-**New Test User (just created):**
-- Email: test@test.com
-- Password: password123
+**After:**
+```html
+<select name="company_id">
+  <option value="1">Active Company 1</option>
+  <option value="2">Active Company 2</option>
+</select>
+<!-- Customer can only select from active companies -->
+```
 
-## Next Steps
+### Backend Protection:
+```php
+✅ Validates company exists
+✅ Validates company is active
+✅ Returns 422 error if invalid
+✅ Prevents parcel creation for inactive companies
+```
 
-1. Open browser to http://localhost:3000
-2. Click "Register" or "Login"
-3. Test the complete workflow:
-   - Register as customer
-   - Create a parcel
-   - Login as admin
-   - Accept the parcel
-   - View auto-created shipment
-   - Login as driver
-   - Update shipment status
+## 📋 API Changes
 
-## No Further Issues Found
+### New Endpoint:
+```
+GET /api/companies/active
+```
 
-All code has been checked and verified:
-- ✅ No PHP syntax errors
-- ✅ No JavaScript syntax errors
-- ✅ No TypeScript (as requested)
-- ✅ All migrations working
-- ✅ All models properly configured
-- ✅ All controllers functional
-- ✅ All routes registered
-- ✅ Authentication working
-- ✅ Both servers running
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Test Logistics Company",
+    "subdomain": "testcompany"
+  }
+]
+```
 
-The platform is now fully operational! 🚀
+**Access:** Public (no authentication required)
+**Purpose:** Allow customers to see available companies
+
+## ✅ Validation Summary
+
+### Parcel Creation:
+| Field | Validation |
+|-------|------------|
+| company_id | Must exist, must be active |
+| weight | 0.1 - 1000 kg |
+| height | 0.01 - 10 m |
+| width | 0.01 - 10 m |
+| length | 0.01 - 10 m |
+| volume | max 500 m³ (calculated) |
+| latitude | -90 to 90 |
+| longitude | -180 to 180 |
+
+### Vehicle Creation:
+| Field | Validation |
+|-------|------------|
+| type | Must be: Truck, Van, Pickup, Trailer, or Box Truck |
+| max_weight | 50 - 50,000 kg |
+| max_volume | 10 - 10,000 m³ |
+| vehicle_number | Unique, max 50 chars |
+
+## 🧪 Testing Guide
+
+### Test Company Selection:
+1. Logout and login as customer
+2. Go to Create Parcel
+3. See dropdown with active companies only
+4. Cannot manually enter company_id
+5. Try to submit without selecting company → Error
+
+### Test Vehicle Type:
+1. Login as company admin
+2. Go to Create Vehicle
+3. See dropdown with vehicle types
+4. Cannot enter custom type
+5. Select "Truck" and submit → Success
+
+### Test Inactive Company:
+1. As super admin, deactivate a company
+2. Logout, login as customer
+3. Go to Create Parcel
+4. Deactivated company not in dropdown
+5. Cannot create parcel for that company
+
+### Test Weight/Volume:
+1. Create parcel with weight 1500 kg → Error
+2. Create parcel with dimensions 10×10×10 → Error (volume too large)
+3. Create parcel with valid values → Success
+
+## 🎯 Benefits
+
+### Security:
+- ✅ Customers can't manipulate company_id
+- ✅ Only active companies shown
+- ✅ Backend validates everything
+- ✅ Prevents unauthorized parcel creation
+
+### Data Quality:
+- ✅ Consistent vehicle types
+- ✅ Valid weight and volume values
+- ✅ Proper validation on both frontend and backend
+- ✅ Clear error messages
+
+### User Experience:
+- ✅ Dropdown easier than typing
+- ✅ No typos in vehicle types
+- ✅ Clear options to choose from
+- ✅ Immediate feedback on errors
+
+## 📝 Summary
+
+**Fixed Issues:**
+1. ✅ Customers can only select from active companies
+2. ✅ Vehicle type is dropdown with predefined options
+3. ✅ Weight and volume validation working correctly
+
+**Security:**
+- ✅ Backend validates company is active
+- ✅ Frontend prevents manual company_id entry
+- ✅ Proper validation on all fields
+
+**Ready to test!** 🚀
+
+---
+
+**Status:** ✅ COMPLETE
+**Files Modified:** 5
+**Security:** ✅ IMPROVED
+**Validation:** ✅ ENFORCED

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Parcel;
 use App\Models\Shipment;
 use App\Models\Vehicle;
+use App\Models\Company;
 use App\Services\DistanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -46,14 +47,13 @@ class ParcelController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'company_id' => 'required|exists:companies,id',
             'pickup_address' => 'required|string|max:500',
             'delivery_address' => 'required|string|max:500',
             'pickup_latitude' => 'required|numeric|between:-90,90',
             'pickup_longitude' => 'required|numeric|between:-180,180',
             'delivery_latitude' => 'required|numeric|between:-90,90',
             'delivery_longitude' => 'required|numeric|between:-180,180',
-            'weight' => 'required|numeric|min:0.1|max:1000',
+            'weight' => 'required|numeric|min:0.1|max:25000',
             'height' => 'required|numeric|min:0.01|max:10',
             'width' => 'required|numeric|min:0.01|max:10',
             'length' => 'required|numeric|min:0.01|max:10',
@@ -63,15 +63,38 @@ class ParcelController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Use customer's company_id
+        $companyId = $user->company_id;
+        if (!$companyId) {
+            return response()->json(['error' => 'You must be associated with a company to create parcels'], 422);
+        }
+
+        // Check if company is active
+        $company = Company::find($companyId);
+        if (!$company || !$company->is_active) {
+            return response()->json(['error' => 'Your company is currently not available'], 422);
+        }
+
         // Auto-calculate volume
         $volume = $request->height * $request->width * $request->length;
 
-        // Validate volume doesn't exceed maximum vehicle capacity
-        if ($volume > 500) {
+        // Validate volume doesn't exceed maximum vehicle capacity (Trailer = 100 m³)
+        if ($volume > 100) {
             return response()->json([
                 'error' => 'Calculated volume exceeds maximum vehicle capacity',
                 'calculated_volume' => round($volume, 2),
-                'max_volume' => 500
+                'max_volume' => 100,
+                'note' => 'Maximum capacity is for Trailer vehicles (100 m³)'
+            ], 422);
+        }
+        
+        // Validate weight doesn't exceed maximum vehicle capacity (Trailer = 25000 kg)
+        if ($request->weight > 25000) {
+            return response()->json([
+                'error' => 'Weight exceeds maximum vehicle capacity',
+                'weight' => $request->weight,
+                'max_weight' => 25000,
+                'note' => 'Maximum capacity is for Trailer vehicles (25,000 kg)'
             ], 422);
         }
 
@@ -80,7 +103,7 @@ class ParcelController extends Controller
 
         $parcel = Parcel::create([
             'customer_id' => $user->id,
-            'company_id' => $request->company_id,
+            'company_id' => $companyId,
             'pickup_address' => $request->pickup_address,
             'delivery_address' => $request->delivery_address,
             'pickup_latitude' => $request->pickup_latitude,
@@ -166,12 +189,44 @@ class ParcelController extends Controller
             // Reload parcel to get updated status and relationships
             $parcel->refresh();
 
+            // Provide detailed message based on assignment result
+            $message = 'Parcel accepted';
+            if ($parcel->status === 'stored') {
+                $message = 'Parcel accepted and assigned to shipment successfully';
+            } else {
+                // Check why assignment failed
+                $reasons = [];
+                
+                // Check for available drivers
+                $availableDriver = \App\Models\User::where('company_id', $parcel->company_id)
+                    ->where('is_driver', true)
+                    ->whereDoesntHave('shipments', function ($query) {
+                        $query->whereIn('status', ['pending', 'loading', 'in_transit']);
+                    })
+                    ->exists();
+                
+                if (!$availableDriver) {
+                    $reasons[] = 'no available drivers';
+                }
+                
+                // Check for suitable vehicles
+                $suitableVehicle = Vehicle::where('company_id', $parcel->company_id)
+                    ->where('warehouse_id', $parcel->assigned_warehouse_id)
+                    ->whereRaw('(max_weight - current_weight) >= ?', [$parcel->weight])
+                    ->whereRaw('(max_volume - current_volume) >= ?', [$parcel->volume])
+                    ->exists();
+                
+                if (!$suitableVehicle) {
+                    $reasons[] = 'no vehicle with sufficient capacity at this warehouse';
+                }
+                
+                $message = 'Parcel accepted but not assigned: ' . implode(' and ', $reasons);
+            }
+
             return response()->json([
                 'parcel' => $parcel->load(['warehouse', 'shipment']),
                 'auto_assigned' => $parcel->status === 'stored',
-                'message' => $parcel->status === 'stored' 
-                    ? 'Parcel accepted and assigned to shipment' 
-                    : 'Parcel accepted but waiting for driver/vehicle availability'
+                'message' => $message
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

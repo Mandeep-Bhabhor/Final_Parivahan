@@ -12,37 +12,31 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        // Only allow customer registration publicly
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'company_name' => 'required_if:role,company_admin|string|max:255',
-            'subdomain' => 'required_if:role,company_admin|string|max:255|unique:companies,subdomain',
-            'role' => 'required|in:company_admin,customer',
+            'company_id' => 'required|exists:companies,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $company = null;
-        $role = $request->role;
-
-        // If registering as company admin, create company first
-        if ($role === 'company_admin') {
-            $company = Company::create([
-                'name' => $request->company_name,
-                'subdomain' => $request->subdomain,
-                'email' => $request->email,
-            ]);
+        // Check if company is active
+        $company = Company::find($request->company_id);
+        if (!$company || !$company->is_active) {
+            return response()->json(['error' => 'Selected company is not available'], 422);
         }
 
+        // Create customer user
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'company_id' => $company ? $company->id : null,
-            'role' => $role,
+            'company_id' => $request->company_id,
+            'role' => 'customer',
             'is_driver' => false,
         ]);
 
@@ -50,7 +44,6 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
-            'company' => $company,
             'token' => $token,
         ], 201);
     }

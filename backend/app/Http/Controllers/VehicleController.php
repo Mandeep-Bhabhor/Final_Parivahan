@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Validator;
 
 class VehicleController extends Controller
 {
+    // Standard vehicle capacities
+    protected $vehicleCapacities = [
+        'Truck' => ['max_weight' => 10000, 'max_volume' => 50],
+        'Van' => ['max_weight' => 1500, 'max_volume' => 15],
+        'Pickup' => ['max_weight' => 1000, 'max_volume' => 5],
+        'Trailer' => ['max_weight' => 25000, 'max_volume' => 100],
+        'Box Truck' => ['max_weight' => 5000, 'max_volume' => 30],
+    ];
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -23,6 +32,11 @@ class VehicleController extends Controller
         return response()->json($vehicles);
     }
 
+    public function getCapacities()
+    {
+        return response()->json($this->vehicleCapacities);
+    }
+
     public function store(Request $request)
     {
         $user = $request->user();
@@ -33,14 +47,28 @@ class VehicleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'vehicle_number' => 'required|string|max:50|unique:vehicles,vehicle_number',
-            'type' => 'required|string|max:50',
+            'type' => 'required|string|in:Truck,Van,Pickup,Trailer,Box Truck',
             'warehouse_id' => 'nullable|exists:warehouses,id',
-            'max_weight' => 'required|numeric|min:50|max:50000',
-            'max_volume' => 'required|numeric|min:10|max:10000',
+            'max_weight' => 'required|numeric',
+            'max_volume' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Validate capacities match the standard for the vehicle type
+        $expectedCapacity = $this->vehicleCapacities[$request->type];
+        if ($request->max_weight != $expectedCapacity['max_weight'] || 
+            $request->max_volume != $expectedCapacity['max_volume']) {
+            return response()->json([
+                'error' => 'Invalid capacity for vehicle type',
+                'expected' => $expectedCapacity,
+                'received' => [
+                    'max_weight' => $request->max_weight,
+                    'max_volume' => $request->max_volume
+                ]
+            ], 422);
         }
 
         $vehicle = Vehicle::create([
@@ -91,14 +119,30 @@ class VehicleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'vehicle_number' => 'sometimes|string|max:50|unique:vehicles,vehicle_number,' . $id,
-            'type' => 'sometimes|string|max:50',
+            'type' => 'sometimes|string|in:Truck,Van,Pickup,Trailer,Box Truck',
             'warehouse_id' => 'nullable|exists:warehouses,id',
-            'max_weight' => 'sometimes|numeric|min:50|max:50000',
-            'max_volume' => 'sometimes|numeric|min:10|max:10000',
+            'max_weight' => 'sometimes|numeric',
+            'max_volume' => 'sometimes|numeric',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // If type is being updated, validate capacities match the standard
+        if ($request->has('type')) {
+            $expectedCapacity = $this->vehicleCapacities[$request->type];
+            if ($request->max_weight != $expectedCapacity['max_weight'] || 
+                $request->max_volume != $expectedCapacity['max_volume']) {
+                return response()->json([
+                    'error' => 'Invalid capacity for vehicle type',
+                    'expected' => $expectedCapacity,
+                    'received' => [
+                        'max_weight' => $request->max_weight,
+                        'max_volume' => $request->max_volume
+                    ]
+                ], 422);
+            }
         }
 
         $vehicle->update($request->only([

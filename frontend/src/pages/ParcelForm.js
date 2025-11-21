@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parcelService, companyService } from '../services/api';
+import { parcelService } from '../services/api';
 
 function ParcelForm() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    company_id: '',
     pickup_address: '',
     delivery_address: '',
     pickup_latitude: '',
@@ -27,9 +26,9 @@ function ParcelForm() {
   const validateForm = () => {
     const { weight, height, width, length, pickup_latitude, pickup_longitude, delivery_latitude, delivery_longitude } = formData;
     
-    // Weight validation (0.1 kg to 1000 kg - max vehicle capacity)
-    if (weight < 0.1 || weight > 1000) {
-      setError('Weight must be between 0.1 kg and 1000 kg');
+    // Weight validation (0.1 kg to 25,000 kg - Trailer max capacity)
+    if (weight < 0.1 || weight > 25000) {
+      setError('Weight must be between 0.1 kg and 25,000 kg (Trailer capacity)');
       return false;
     }
 
@@ -47,10 +46,10 @@ function ParcelForm() {
       return false;
     }
 
-    // Volume validation (max 500 m³ - max vehicle capacity)
+    // Volume validation (max 100 m³ - Trailer max capacity)
     const volume = height * width * length;
-    if (volume > 500) {
-      setError(`Calculated volume (${volume.toFixed(2)} m³) exceeds maximum vehicle capacity (500 m³). Please reduce dimensions.`);
+    if (volume > 100) {
+      setError(`Calculated volume (${volume.toFixed(2)} m³) exceeds maximum vehicle capacity (100 m³ for Trailer). Please reduce dimensions.`);
       return false;
     }
 
@@ -103,10 +102,8 @@ function ParcelForm() {
       {error && <div className="alert alert-danger">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label className="form-label">Company ID</label>
-          <input type="number" className="form-control" name="company_id" value={formData.company_id} onChange={handleChange} required />
-          <small className="form-text text-muted">Enter the company ID you want to ship with</small>
+        <div className="alert alert-info">
+          <strong>Note:</strong> This parcel will be created for your registered company.
         </div>
 
         <div className="mb-3">
@@ -190,7 +187,7 @@ function ParcelForm() {
         </div>
 
         <div className="alert alert-info">
-          <strong>Capacity Limits:</strong> Weight: 0.1-1000 kg | Dimensions: 0.01-10 m each | Max Volume: 500 m³
+          <strong>Capacity Limits:</strong> Weight: 0.1-25,000 kg | Dimensions: 0.01-10 m each | Max Volume: 100 m³ (Trailer)
         </div>
 
         <div className="row">
@@ -200,15 +197,15 @@ function ParcelForm() {
               type="number" 
               step="0.01" 
               min="0.1" 
-              max="1000" 
+              max="25000" 
               className="form-control" 
               name="weight" 
               value={formData.weight} 
               onChange={handleChange} 
               required 
-              placeholder="0.1 - 1000"
+              placeholder="0.1 - 25,000"
             />
-            <small className="text-muted">Max: 1000 kg</small>
+            <small className="text-muted">Max: 25,000 kg (Trailer)</small>
           </div>
           <div className="col-md-3 mb-3">
             <label className="form-label">Height (m) *</label>
@@ -261,10 +258,10 @@ function ParcelForm() {
         </div>
 
         {formData.height && formData.width && formData.length && (
-          <div className="alert alert-secondary">
+          <div className={`alert ${(formData.height * formData.width * formData.length) > 100 ? 'alert-danger' : 'alert-secondary'}`}>
             <strong>Calculated Volume:</strong> {(formData.height * formData.width * formData.length).toFixed(3)} m³
-            {(formData.height * formData.width * formData.length) > 500 && (
-              <span className="text-danger"> - Exceeds maximum capacity!</span>
+            {(formData.height * formData.width * formData.length) > 100 && (
+              <span className="text-danger"> - Exceeds maximum capacity (100 m³)!</span>
             )}
           </div>
         )}

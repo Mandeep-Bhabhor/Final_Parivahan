@@ -11,12 +11,28 @@ use App\Http\Controllers\ShipmentController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/companies/active', [\App\Http\Controllers\CompanyController::class, 'getActiveCompanies']);
+Route::get('/vehicles/capacities', [VehicleController::class, 'getCapacities']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Super Admin routes
+    Route::middleware('super_admin')->prefix('super-admin')->group(function () {
+        Route::get('/stats', [\App\Http\Controllers\SuperAdminController::class, 'stats']);
+        Route::get('/companies', [\App\Http\Controllers\SuperAdminController::class, 'listCompanies']);
+        Route::post('/companies', [\App\Http\Controllers\SuperAdminController::class, 'createCompany']);
+        Route::get('/companies/{id}', [\App\Http\Controllers\SuperAdminController::class, 'getCompany']);
+        Route::put('/companies/{id}', [\App\Http\Controllers\SuperAdminController::class, 'updateCompany']);
+        Route::post('/companies/{id}/toggle-status', [\App\Http\Controllers\SuperAdminController::class, 'toggleCompanyStatus']);
+        Route::post('/companies/{id}/create-admin', [\App\Http\Controllers\SuperAdminController::class, 'createCompanyAdmin']);
+        Route::get('/users', [\App\Http\Controllers\SuperAdminController::class, 'listAllUsers']);
+        Route::get('/parcels', [\App\Http\Controllers\SuperAdminController::class, 'listAllParcels']);
+        Route::get('/shipments', [\App\Http\Controllers\SuperAdminController::class, 'listAllShipments']);
+    });
 
     // Company routes
     Route::get('/company', [CompanyController::class, 'show']);

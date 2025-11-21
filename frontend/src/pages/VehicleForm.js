@@ -7,6 +7,15 @@ function VehicleForm() {
   const { id } = useParams();
   const isEdit = !!id;
 
+  // Standard vehicle capacities
+  const vehicleCapacities = {
+    'Truck': { max_weight: 10000, max_volume: 50 },
+    'Van': { max_weight: 1500, max_volume: 15 },
+    'Pickup': { max_weight: 1000, max_volume: 5 },
+    'Trailer': { max_weight: 25000, max_volume: 100 },
+    'Box Truck': { max_weight: 5000, max_volume: 30 },
+  };
+
   const [formData, setFormData] = useState({
     vehicle_number: '',
     type: '',
@@ -42,7 +51,19 @@ function VehicleForm() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // When vehicle type changes, auto-set the capacities
+    if (name === 'type' && value && vehicleCapacities[value]) {
+      setFormData({
+        ...formData,
+        type: value,
+        max_weight: vehicleCapacities[value].max_weight,
+        max_volume: vehicleCapacities[value].max_volume,
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -76,8 +97,15 @@ function VehicleForm() {
         </div>
 
         <div className="mb-3">
-          <label className="form-label">Type</label>
-          <input type="text" className="form-control" name="type" value={formData.type} onChange={handleChange} required />
+          <label className="form-label">Vehicle Type *</label>
+          <select className="form-select" name="type" value={formData.type} onChange={handleChange} required>
+            <option value="">Select vehicle type...</option>
+            <option value="Truck">Truck</option>
+            <option value="Van">Van</option>
+            <option value="Pickup">Pickup</option>
+            <option value="Trailer">Trailer</option>
+            <option value="Box Truck">Box Truck</option>
+          </select>
         </div>
 
         <div className="mb-3">
@@ -88,42 +116,38 @@ function VehicleForm() {
           </select>
         </div>
 
-        <div className="alert alert-info">
-          <strong>Recommended Ranges:</strong> Weight: 50-50,000 kg | Volume: 10-10,000 m³
-        </div>
+        {formData.type && (
+          <div className="alert alert-success">
+            <strong>Standard Capacity for {formData.type}:</strong> Weight: {formData.max_weight.toLocaleString()} kg | Volume: {formData.max_volume} m³
+          </div>
+        )}
 
         <div className="row">
           <div className="col-md-6 mb-3">
             <label className="form-label">Max Weight (kg) *</label>
             <input 
               type="number" 
-              step="0.01" 
-              min="50" 
-              max="50000" 
               className="form-control" 
               name="max_weight" 
               value={formData.max_weight} 
-              onChange={handleChange} 
+              readOnly
+              disabled
               required 
-              placeholder="50 - 50,000"
             />
-            <small className="text-muted">Minimum: 50 kg, Maximum: 50,000 kg</small>
+            <small className="text-muted">Auto-set based on vehicle type</small>
           </div>
           <div className="col-md-6 mb-3">
             <label className="form-label">Max Volume (m³) *</label>
             <input 
               type="number" 
-              step="0.01" 
-              min="10" 
-              max="10000" 
               className="form-control" 
               name="max_volume" 
               value={formData.max_volume} 
-              onChange={handleChange} 
+              readOnly
+              disabled
               required 
-              placeholder="10 - 10,000"
             />
-            <small className="text-muted">Minimum: 10 m³, Maximum: 10,000 m³</small>
+            <small className="text-muted">Auto-set based on vehicle type</small>
           </div>
         </div>
 

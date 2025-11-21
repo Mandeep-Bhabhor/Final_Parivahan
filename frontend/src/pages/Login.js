@@ -23,7 +23,13 @@ function Login() {
     try {
       const response = await authService.login(formData);
       setAuth(response.data.user, response.data.token);
-      navigate('/dashboard');
+      
+      // Role-based redirect
+      if (response.data.user.role === 'super_admin') {
+        navigate('/super-admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

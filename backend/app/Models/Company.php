@@ -12,6 +12,11 @@ class Company extends Model
         'email',
         'phone',
         'address',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     public function users()

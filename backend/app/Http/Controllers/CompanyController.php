@@ -17,6 +17,15 @@ class CompanyController extends Controller
         return response()->json($companies);
     }
 
+    public function getActiveCompanies(Request $request)
+    {
+        // Public endpoint for customers to see active companies
+        $companies = Company::where('is_active', true)
+            ->select('id', 'name', 'subdomain')
+            ->get();
+        return response()->json($companies);
+    }
+
     public function show(Request $request)
     {
         $company = $request->user()->company;

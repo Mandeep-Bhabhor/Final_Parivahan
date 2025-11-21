@@ -14,6 +14,13 @@ import ParcelForm from './pages/ParcelForm';
 import ParcelDetail from './pages/ParcelDetail';
 import Shipments from './pages/Shipments';
 import Users from './pages/Users';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import CompanyManagement from './pages/CompanyManagement';
+import CompanyForm from './pages/CompanyForm';
+import CompanyDetail from './pages/CompanyDetail';
+import SuperAdminUsers from './pages/SuperAdminUsers';
+import SuperAdminParcels from './pages/SuperAdminParcels';
+import SuperAdminShipments from './pages/SuperAdminShipments';
 
 function App() {
   return (
@@ -26,6 +33,16 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          
+          {/* Super Admin Routes */}
+          <Route path="/super-admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/super-admin/companies" element={<ProtectedRoute allowedRoles={['super_admin']}><CompanyManagement /></ProtectedRoute>} />
+          <Route path="/super-admin/companies/create" element={<ProtectedRoute allowedRoles={['super_admin']}><CompanyForm /></ProtectedRoute>} />
+          <Route path="/super-admin/companies/:id" element={<ProtectedRoute allowedRoles={['super_admin']}><CompanyDetail /></ProtectedRoute>} />
+          <Route path="/super-admin/companies/:id/edit" element={<ProtectedRoute allowedRoles={['super_admin']}><CompanyForm /></ProtectedRoute>} />
+          <Route path="/super-admin/users" element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminUsers /></ProtectedRoute>} />
+          <Route path="/super-admin/parcels" element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminParcels /></ProtectedRoute>} />
+          <Route path="/super-admin/shipments" element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminShipments /></ProtectedRoute>} />
           
           <Route path="/warehouses" element={<ProtectedRoute allowedRoles={['company_admin', 'staff']}><Warehouses /></ProtectedRoute>} />
           <Route path="/warehouses/create" element={<ProtectedRoute allowedRoles={['company_admin', 'staff']}><WarehouseForm /></ProtectedRoute>} />

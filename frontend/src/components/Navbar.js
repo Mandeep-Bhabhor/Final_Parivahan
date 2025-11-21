@@ -32,6 +32,23 @@ function Navbar() {
               <Link className="nav-link" to="/dashboard">Dashboard</Link>
             </li>
             
+            {user.role === 'super_admin' && (
+              <>
+                <li className="nav-item">
+                  <Link className="nav-link" to="/super-admin/companies">Companies</Link>
+                </li>
+                <li className="nav-item">
+                  <Link className="nav-link" to="/super-admin/users">Users</Link>
+                </li>
+                <li className="nav-item">
+                  <Link className="nav-link" to="/super-admin/parcels">Parcels</Link>
+                </li>
+                <li className="nav-item">
+                  <Link className="nav-link" to="/super-admin/shipments">Shipments</Link>
+                </li>
+              </>
+            )}
+
             {user.role === 'customer' && (
               <>
                 <li className="nav-item">
@@ -71,8 +88,7 @@ function Navbar() {
                 <Link className="nav-link" to="/my-shipments">My Shipments</Link>
               </li>
             )}
-          </ul>
-          <div className="d-flex align-items-center">
+          </ul>          <div className="d-flex align-items-center">
             <span className="text-white me-3">
               {user.name} ({user.role})
             </span>
