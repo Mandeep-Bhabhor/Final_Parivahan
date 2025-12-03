@@ -1,0 +1,214 @@
+@startuml Logistics Management System - ER Diagram
+
+!define primary_key(x) <b><color:#b8861b><&key></color> x</b>
+!define foreign_key(x) <color:#aaaaaa><&key></color> x
+!define column(x) <color:#efefef><&media-record></color> x
+!define table(x) entity x << (T, white) >>
+
+' Styling
+skinparam linetype ortho
+skinparam roundcorner 5
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+' ===== ENTITIES =====
+
+entity "companies" as companies {
+  primary_key(id) : bigint
+  --
+  column(name) : varchar(255)
+  column(subdomain) : varchar(255) <<unique>>
+  column(email) : varchar(255) <<nullable>>
+  column(phone) : varchar(255) <<nullable>>
+  column(address) : text <<nullable>>
+  column(is_active) : boolean
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+}
+
+entity "users" as users {
+  primary_key(id) : bigint
+  --
+  foreign_key(company_id) : bigint <<nullable>>
+  column(name) : varchar(255)
+  column(email) : varchar(255) <<unique>>
+  column(password) : varchar(255)
+  column(role) : enum
+  column(is_driver) : boolean
+  column(email_verified_at) : timestamp <<nullable>>
+  column(remember_token) : varchar(100) <<nullable>>
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+  ..
+  **Roles:**
+  - super_admin
+  - company_admin
+  - staff
+  - driver
+  - customer
+}
+
+entity "warehouses" as warehouses {
+  primary_key(id) : bigint
+  --
+  foreign_key(company_id) : bigint
+  column(name) : varchar(255)
+  column(address) : text
+  column(latitude) : decimal(10,8)
+  column(longitude) : decimal(11,8)
+  column(capacity_weight) : decimal(10,2)
+  column(capacity_volume) : decimal(10,2)
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+}
+
+entity "vehicles" as vehicles {
+  primary_key(id) : bigint
+  --
+  foreign_key(company_id) : bigint
+  foreign_key(warehouse_id) : bigint <<nullable>>
+  column(vehicle_number) : varchar(255) <<unique>>
+  column(type) : varchar(255)
+  column(max_weight) : decimal(10,2)
+  column(max_volume) : decimal(10,2)
+  column(current_weight) : decimal(10,2)
+  column(current_volume) : decimal(10,2)
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+  ..
+  **Types:**
+  - Pickup (1,000kg / 5m³)
+  - Van (1,500kg / 15m³)
+  - Box Truck (5,000kg / 30m³)
+  - Truck (10,000kg / 50m³)
+  - Trailer (25,000kg / 100m³)
+}
+
+entity "parcels" as parcels {
+  primary_key(id) : bigint
+  --
+  foreign_key(customer_id) : bigint
+  foreign_key(company_id) : bigint
+  foreign_key(assigned_warehouse_id) : bigint <<nullable>>
+  foreign_key(assigned_shipment_id) : bigint <<nullable>>
+  column(pickup_address) : text
+  column(delivery_address) : text
+  column(pickup_latitude) : decimal(10,8)
+  column(pickup_longitude) : decimal(11,8)
+  column(delivery_latitude) : decimal(10,8)
+  column(delivery_longitude) : decimal(11,8)
+  column(weight) : decimal(10,2)
+  column(height) : decimal(10,2)
+  column(width) : decimal(10,2)
+  column(length) : decimal(10,2)
+  column(volume) : decimal(10,2)
+  column(quoted_price) : decimal(10,2) <<nullable>>
+  column(status) : enum
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+  ..
+  **Status Flow:**
+  pending → accepted/rejected
+  accepted → stored → loaded
+  loaded → dispatched → delivered
+}
+
+entity "shipments" as shipments {
+  primary_key(id) : bigint
+  --
+  foreign_key(company_id) : bigint
+  foreign_key(driver_id) : bigint
+  foreign_key(vehicle_id) : bigint
+  foreign_key(warehouse_id) : bigint
+  column(total_weight) : decimal(10,2)
+  column(total_volume) : decimal(10,2)
+  column(status) : enum
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+  ..
+  **Status Flow:**
+  pending → loading
+  loading → in_transit
+  in_transit → completed
+}
+
+entity "shipment_parcels" as shipment_parcels {
+  primary_key(id) : bigint
+  --
+  foreign_key(shipment_id) : bigint
+  foreign_key(parcel_id) : bigint
+  column(created_at) : timestamp
+  column(updated_at) : timestamp
+}
+
+' ===== RELATIONSHIPS =====
+
+' Company relationships
+companies ||--o{ users : "has many"
+companies ||--o{ warehouses : "has many"
+companies ||--o{ vehicles : "has many"
+companies ||--o{ parcels : "has many"
+companies ||--o{ shipments : "has many"
+
+' User relationships
+users ||--o{ parcels : "creates\n(as customer)"
+users ||--o{ shipments : "drives\n(as driver)"
+
+' Warehouse relationships
+warehouses ||--o{ vehicles : "stores"
+warehouses ||--o{ parcels : "assigned to"
+warehouses ||--o{ shipments : "originates from"
+
+' Vehicle relationships
+vehicles ||--o{ shipments : "used in"
+
+' Parcel relationships
+parcels }o--|| shipment_parcels : "linked via"
+parcels }o--o| warehouses : "assigned to"
+parcels }o--o| shipments : "assigned to"
+
+' Shipment relationships
+shipments ||--o{ shipment_parcels : "contains"
+
+' Notes
+note right of companies
+  **Multi-tenant System**
+  Each company operates
+  independently with isolated
+  data and resources
+end note
+
+note right of users
+  **Special Role: super_admin**
+  Not stored in DB
+  Identified by email in config
+  Can manage all companies
+end note
+
+note right of parcels
+  **Auto-Assignment Logic**
+  When accepted, system tries to:
+  1. Find available driver
+  2. Find vehicle with capacity
+  3. Create/assign to shipment
+  4. Update status to 'stored'
+end note
+
+note right of vehicles
+  **Capacity Management**
+  current_weight/volume tracks
+  real-time usage to prevent
+  overloading during assignment
+end note
+
+note bottom of shipment_parcels
+  **Junction Table**
+  Enables many-to-many
+  relationship between
+  shipments and parcels
+end note
+
+@enduml
