@@ -91,6 +91,9 @@ function Navbar() {
           </ul>          <div className="d-flex align-items-center">
             <span className="text-white me-3">
               {user.name} ({user.role})
+              {user.company && user.role !== 'super_admin' && (
+                <span className="text-light"> - {user.company.name}</span>
+              )}
             </span>
             <button className="btn btn-outline-light" onClick={handleLogout}>
               Logout
